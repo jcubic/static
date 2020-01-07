@@ -1,16 +1,4 @@
-/* Copyright (c) 2018 春秋一语
- * License MIT
- * converted using browserify
- *
- * generating the file:
- *
- *   git clone https://github.com/chunqiuyiyu/ervy.git
- *   cd ervy
- *   npm install -g browserify # may require sudo
- *   browserify -o ervy.js -e index.js --standalone ervy
- *
- */
-
+/* Copyright (c) 2018 春秋一语 (chunqiuyiyu), License MIT */
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.ervy = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 const { bg, fg } = require('./lib/utils')
 
@@ -217,11 +205,10 @@ module.exports = (data, opts, isDonut = false) => {
   const newOpts = Object.assign({
     radius: 4,
     left: 0,
-    gapChar: PAD,
     innerRadius: 1
   }, opts)
 
-  const { radius, left, gapChar, innerRadius } = newOpts
+  const { radius, left, innerRadius } = newOpts
 
   let result = PAD.repeat(left)
 
@@ -232,6 +219,7 @@ module.exports = (data, opts, isDonut = false) => {
   const keys = data.map(item => item.key)
   const maxKeyLength = maxKeyLen(data)
   const limit = isDonut ? innerRadius : 0
+  const gapChar = styles.slice(-1)[0]
 
   for (let i = -radius; i < radius; i++) {
     for (let j = -radius; j < radius; j++) {
@@ -269,23 +257,31 @@ const {
   curForward,
   curUp,
   curDown,
-  curBack
+  curBack,
+  getOriginLen
 } = utils
 
-const printBox = (width, height, style = '# ', left = 0, top = 0) => {
+const printBox = (width, height, style = '# ', left = 0, top = 0, type = 'coordinate') => {
   let result = curForward(left) + curUp(top)
+  const hasSide = width > 1 || height > 1
+
   for (let i = 0; i < height; i++) {
     for (let j = 0; j < width; j++) {
       result += style
     }
 
-    if (i !== height - 1) {
-      result += EOL + curForward(left)
-    } else {
-      result += EOL
+    if (hasSide) {
+      if (i !== height - 1) {
+        result += EOL + curForward(left)
+      } else {
+        result += EOL
+      }
     }
   }
 
+  if (type === 'data') {
+    result += curDown(hasSide ? (top - height) : top) + curBack(left + getOriginLen(style))
+  }
   return result
 }
 
@@ -297,7 +293,7 @@ module.exports = (data, opts) => {
     left: 2,
     height: 10,
     style: '# ',
-    side: 1,
+    sides: [1, 1],
     hAxis: ['+', '-', '>'],
     vAxis: ['|', 'A'],
     hName: 'X Axis',
@@ -310,13 +306,13 @@ module.exports = (data, opts) => {
   }, opts)
 
   const {
-    left, height, style, side, width, zero, hAxis, vAxis, ratio,
-    hName, vName, hSlugs, hGap, vGap, legendGap
+    left, height, style, sides, width, zero, hAxis, vAxis, ratio,
+    hName, vName, hGap, vGap, legendGap
   } = newOpts
 
   let tmp; let result = ''
   const styles = data.map(item => item.style || style)
-  const sides = data.map(item => item.side || side)
+  const allSides = data.map(item => item.sides || sides)
   const keys = new Set(data.map(item => item.key))
 
   result += PAD.repeat(left) + vName
@@ -333,12 +329,13 @@ module.exports = (data, opts) => {
 
   data.map((item, index) => {
     result += printBox(
-      sides[index],
-      sides[index],
+      allSides[index][0],
+      allSides[index][1],
       styles[index],
       item.value[0] * 2 + left + 1,
-      item.value[1]
-    ) + curDown(item.value[1])
+      item.value[1],
+      'data'
+    )
   })
 
   result += curBack(width * 2) + curUp(height + 1) +
@@ -350,15 +347,20 @@ module.exports = (data, opts) => {
     result += EOL + tmp.padStart(left + 1) + vAxis[0]
   }
 
-  result += curBack() + zero
+  result += curBack() + zero + curDown(1) + curBack(1) + '0' + curUp(1)
 
-  for (let i = 0; i < (width * 2) + 2; i++) {
-    if ((i + 1) % (hGap * 2) === 0) {
-      tmp = hSlugs ? hSlugs[(i + 1) / (hGap * 2) - 1].length || 1
-        : (((i + 1) / 2) * ratio[0]).toString().length
-
+  for (let i = 1; i < (width * 2) + hGap; i++) {
+    if (!(i % (hGap * 2))) {
       result += hAxis[0]
-      result += hAxis[1].repeat(tmp - 1)
+
+      // Draw scale of horizontal axis
+      const item = (i / 2) * ratio[0]
+      const len = item.toString().length
+
+      result += curDown(1) + curBack(1) + item + curUp(1)
+      if (len > 1) {
+        result += curBack(len - 1)
+      }
 
       continue
     }
@@ -366,17 +368,7 @@ module.exports = (data, opts) => {
     result += hAxis[1]
   }
 
-  result += hAxis[2] + PAD + hName + EOL + PAD.repeat(left + 1)
-
-  for (let i = 0; i < (width * 2) + hGap; i++) {
-    if (i % (hGap * 2) === 0) {
-      result += hSlugs ? hSlugs[i / (hGap * 2)] || PAD
-        : (i / 2) * ratio[0]
-      continue
-    }
-
-    result += PAD
-  }
+  result += hAxis[2] + PAD + hName + EOL
 
   return result
 }
@@ -440,6 +432,8 @@ module.exports = {
   },
 
   maxKeyLen: (data) => Math.max.apply(null, data.map(item => item.key.length)),
+  // eslint-disable-next-line
+  getOriginLen: (str) => str.replace(/\x1b\[[0-9;]*m/g, '').length,
 
   curForward: (step = 1) => `\x1b[${step}C`,
   curUp: (step = 1) => `\x1b[${step}A`,
