@@ -1,6 +1,8 @@
-/* Javascript porting of Markus Kuhn's wcwidth() implementation
+/*
+ * wcwidth is a simple JavaScript port of wcwidth implemented in C by Markus Kuhn.
+ * JavaScript port originally written by Woong Jun woong.jun@gmail.com (http://code.woong.org/)
  *
- * Copyright Tim Oxley <https://github.com/timoxley>
+ * Copyright (C) 2012 by Jun Woong.
  * license MIT
  *
  * file created using browserify, source at https://github.com/timoxley/wcwidth
