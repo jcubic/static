@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+if [ -z "$1" ]; then
+  echo "Usage: $0 <module> [standalone-name]"
+  echo "  <module>          The module to require and bundle."
+  echo "  [standalone-name] Optional. The name to use for the -s option."
+  exit 1
+fi
+
+npx browserify -s ${2:-$1} -r $1 | npx uglifyjs > js/$1.min.js
